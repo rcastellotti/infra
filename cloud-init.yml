@@ -1,0 +1,4 @@
+#cloud-config
+runcmd:
+  - ["sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"]
+  - tailscale up --authkey ${tailscale_authkey} --ssh
