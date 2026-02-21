@@ -46,7 +46,7 @@ variable "tailscale_authkey" {
 }
 
 locals {
-  dns_record_name = var.environment == "prod" ? "*" : var.hostname
+  dns_record_name = var.environment == "prod" ? "*" : "dev"
 }
 
 data "cloudflare_zone" "domain" {
