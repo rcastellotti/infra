@@ -9,6 +9,10 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 4.0"
     }
+    tailscale = {
+      source  = "tailscale/tailscale"
+      version = "~> 0.16"
+    }
   }
   backend "s3" {
     bucket                      = "terraform"
@@ -40,13 +44,17 @@ variable "hostname" {
   type        = string
 }
 
-variable "tailscale_authkey" {
-  type      = string
-  sensitive = true
-}
-
 locals {
   dns_record_name = var.environment == "prod" ? "*" : "dev"
+}
+
+resource "tailscale_tailnet_key" "server" {
+  reusable      = true
+  ephemeral     = false
+  preauthorized = true
+  expiry        = 7776000
+  description   = "${var.environment}-${var.hostname}"
+  tags          = ["tag:rcastellotti-dev"]
 }
 
 data "cloudflare_zone" "domain" {
@@ -84,7 +92,7 @@ resource "hcloud_server" "rcastellotti-dev" {
   server_type = "cx23"
   image       = "ubuntu-24.04"
   location    = "hel1"
-  user_data   = templatefile("${path.module}/cloud-init.yml", { tailscale_authkey = var.tailscale_authkey })
+  user_data   = templatefile("${path.module}/cloud-init.yml", { tailscale_authkey = tailscale_tailnet_key.server.key })
   public_net {
     ipv4_enabled = false
     ipv6_enabled = true
