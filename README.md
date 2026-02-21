@@ -11,9 +11,9 @@ Terraform now creates a reusable 90-day Tailscale auth key via the Tailscale pro
 4. make sure the tag is declared in ACL
 
 ```json
- "tagOwners": {
- "tag:rcastellotti-dev": ["autogroup:admin"]
- }
+"tagOwners": {
+    "tag:rcastellotti-dev": ["autogroup:admin"]
+}
 ```
 
 make sure to add `"tag:rcastellotti-dev"` to SSH `dst`.
