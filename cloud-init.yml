@@ -1,4 +1,13 @@
 #cloud-config
+users:
+  - default
+  - name: rc
+    groups:
+      - sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+
 runcmd:
   - ["sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"]
   - tailscale up --authkey ${tailscale_authkey} --ssh
