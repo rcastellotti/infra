@@ -1,7 +1,4 @@
-# envs
-
-Use one workspace per node so state stays isolated while config stays identical.
-Terraform now creates a reusable 90-day Tailscale auth key via the Tailscale provider.
+# infra
 
 ## tailscale OAuth app
 
