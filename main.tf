@@ -12,7 +12,8 @@ terraform {
   }
   backend "s3" {
     bucket                      = "terraform"
-    key                         = "prod/terraform.tfstate"
+    key                         = "terraform.tfstate"
+    workspace_key_prefix        = ""
     region                      = "auto"
     skip_credentials_validation = true
     skip_requesting_account_id  = true
@@ -25,9 +26,27 @@ terraform {
   }
 }
 
+variable "environment" {
+  description = "Deployment environment. Use dev or prod."
+  type        = string
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment must be either \"dev\" or \"prod\"."
+  }
+}
+
+variable "hostname" {
+  description = "Hetzner server name."
+  type        = string
+}
+
 variable "tailscale_authkey" {
   type      = string
   sensitive = true
+}
+
+locals {
+  dns_record_name = var.environment == "prod" ? "*" : var.hostname
 }
 
 data "cloudflare_zone" "domain" {
@@ -35,7 +54,7 @@ data "cloudflare_zone" "domain" {
 }
 resource "cloudflare_record" "wildcard_ipv6" {
   zone_id = data.cloudflare_zone.domain.id
-  name    = "*"
+  name    = local.dns_record_name
   type    = "AAAA"
   content = hcloud_server.rcastellotti-dev.ipv6_address
   ttl     = 1
@@ -43,7 +62,7 @@ resource "cloudflare_record" "wildcard_ipv6" {
 }
 
 resource "hcloud_firewall" "web-firewall" {
-  name = "web-firewall"
+  name = "${var.environment}-web-firewall"
   rule {
     direction   = "in"
     protocol    = "tcp"
@@ -58,27 +77,14 @@ resource "hcloud_firewall" "web-firewall" {
     source_ips  = ["0.0.0.0/0", "::/0"]
     description = "Allow HTTPS (caddy)"
   }
-  # rule {
-  #   direction   = "in"
-  #   protocol    = "tcp"
-  #   port        = "22"
-  #   source_ips  = ["0.0.0.0/0", "::/0"]
-  #   description = "Allow SSH"
-  # }
 }
-resource "hcloud_ssh_key" "rcastellotti-dev-ssh-key" {
-  name       = "rcastellotti-dev-ssh-key"
-  public_key = file("~/.ssh/id_ed25519.pub")
-}
+
 resource "hcloud_server" "rcastellotti-dev" {
-  name        = "rcastellotti-dev"
+  name        = var.hostname
   server_type = "cx23"
   image       = "ubuntu-24.04"
   location    = "hel1"
-  user_data = templatefile("${path.module}/cloud-init.yml", {
-    tailscale_authkey = var.tailscale_authkey
-  })
-  ssh_keys = [hcloud_ssh_key.rcastellotti-dev-ssh-key.id]
+  user_data   = templatefile("${path.module}/cloud-init.yml", { tailscale_authkey = var.tailscale_authkey })
   public_net {
     ipv4_enabled = false
     ipv6_enabled = true
@@ -92,4 +98,8 @@ resource "hcloud_firewall_attachment" "web_fw_attach" {
 output "server_ipv6" {
   description = "Primary IPv6 address"
   value       = hcloud_server.rcastellotti-dev.ipv6_address
+}
+output "hostname" {
+  description = "Server hostname"
+  value       = hcloud_server.rcastellotti-dev.name
 }
